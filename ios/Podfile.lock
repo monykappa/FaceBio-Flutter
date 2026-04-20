@@ -1,0 +1,27 @@
+PODS:
+  - FaceBioFlutter (1.0.0)
+  - Flutter (1.0.0)
+  - permission_handler_apple (9.3.0):
+    - Flutter
+
+DEPENDENCIES:
+  - FaceBioFlutter (from `.`)
+  - Flutter (from `Flutter`)
+  - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
+
+EXTERNAL SOURCES:
+  FaceBioFlutter:
+    :path: "."
+  Flutter:
+    :path: Flutter
+  permission_handler_apple:
+    :path: ".symlinks/plugins/permission_handler_apple/ios"
+
+SPEC CHECKSUMS:
+  FaceBioFlutter: c0ad4716bdfaef1a406587ed91e998b58186acce
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
+  permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
+
+PODFILE CHECKSUM: 8d5f226ddadb5d3a52d71ff100041ad2ed11bded
+
+COCOAPODS: 1.16.2
