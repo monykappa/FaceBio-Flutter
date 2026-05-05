@@ -6,6 +6,8 @@ final class FaceDetectionFlutterView: NSObject, FlutterPlatformView, FlutterStre
     private let faceView: FaceDetectionView
     private let livenessSDK: FaceLivenessSDK
     private var eventSink: FlutterEventSink?
+    private var lastState: String?
+    private var lastMessage: String?
 
     init(frame: CGRect, viewId: Int64, args: Any?, messenger: FlutterBinaryMessenger) {
         self.faceView = FaceDetectionView(frame: frame)
@@ -29,13 +31,35 @@ final class FaceDetectionFlutterView: NSObject, FlutterPlatformView, FlutterStre
 
     func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
         eventSink = events
+        lastState = nil
+        lastMessage = nil
         faceView.startCamera(
             onStateChanged: { [weak self] state, message in
-                self?.eventSink?(["event": "state", "state": state.rawValue, "message": message])
+                guard let self else { return }
+                let stateValue = state.rawValue
+                if lastState == stateValue, lastMessage == message {
+                    return
+                }
+                lastState = stateValue
+                lastMessage = message
+                eventSink?(["event": "state", "state": stateValue, "message": message])
             },
             onImageCaptured: { [weak self] image in
                 guard let self else { return }
                 Task {
+                    guard let imagePath = self.saveImageToTemporary(image) else {
+                        await MainActor.run { [weak self] in
+                            self?.eventSink?(
+                                FlutterError(
+                                    code: "IMAGE_SAVE_ERROR",
+                                    message: "Failed to save captured image",
+                                    details: nil
+                                )
+                            )
+                        }
+                        return
+                    }
+
                     let result = await self.livenessSDK.detectLiveness(image)
                     await MainActor.run { [weak self] in
                         self?.eventSink?([
@@ -44,6 +68,7 @@ final class FaceDetectionFlutterView: NSObject, FlutterPlatformView, FlutterStre
                             "confidence": result.model?.confidence ?? Float(0),
                             "status":     result.model?.status ?? "fail",
                             "message":    result.model?.message ?? "",
+                            "imagePath":  imagePath,
                         ])
                     }
                 }
@@ -59,5 +84,20 @@ final class FaceDetectionFlutterView: NSObject, FlutterPlatformView, FlutterStre
         faceView.stopCamera()
         eventSink = nil
         return nil
+    }
+
+    private func saveImageToTemporary(_ image: UIImage) -> String? {
+        guard let data = image.jpegData(compressionQuality: 0.95) else {
+            return nil
+        }
+
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("face_\(UUID().uuidString).jpg")
+        do {
+            try data.write(to: fileURL, options: .atomic)
+            return fileURL.path
+        } catch {
+            return nil
+        }
     }
 }
