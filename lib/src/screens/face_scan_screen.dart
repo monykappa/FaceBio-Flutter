@@ -12,8 +12,14 @@ import 'package:facebio_flutter/src/widgets/face_bio_view.dart';
 class FaceScanScreen extends StatefulWidget {
   final ScanMode mode;
   final String userId;
+  final String language; // 'en' or 'km'
 
-  const FaceScanScreen({super.key, required this.mode, required this.userId});
+  const FaceScanScreen({
+    super.key,
+    required this.mode,
+    required this.userId,
+    this.language = 'en',
+  });
 
   @override
   State<FaceScanScreen> createState() => _FaceScanScreenState();
@@ -31,6 +37,7 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
   bool _isCompleted = false;
   bool _isFailureDialogOpen = false;
   bool _isScannerVisible = true;
+  FaceLivenessResult? _capturedResult;
   int _remainingSeconds = 30;
   int _failureAttempts = 0;
   int _scannerSession = 0;
@@ -105,6 +112,7 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
       _isCompleted = false;
       _isSubmitting = false;
       _isScannerVisible = false;
+      _capturedResult = null;
       _statusMessage = 'Position your face in the frame';
     });
 
@@ -194,8 +202,21 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
 
     setState(() {
       _isCompleted = true;
+      _capturedResult = livenessResult;
+    });
+
+    _resetCountdown();
+  }
+
+  Future<void> _continueWithCapturedFace() async {
+    final livenessResult = _capturedResult;
+    final imagePath = livenessResult?.imagePath;
+    if (livenessResult == null || imagePath == null || _isSubmitting) {
+      return;
+    }
+
+    setState(() {
       _isSubmitting = true;
-      _isScannerVisible = false;
     });
 
     try {
@@ -258,16 +279,24 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
           apiMessage: 'Invalid API response: ${error.message}',
         ),
       );
-    } on HttpException catch (error) {
-      await _goToResult(
-        ScanResult(
-          mode: widget.mode,
-          userId: widget.userId,
-          livenessResult: livenessResult,
-          apiSuccess: false,
-          apiMessage: error.message,
-        ),
-      );
+    } catch (error) {
+      debugPrint('Face API submission failed: $error');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not complete the request. '
+              'Check your connection and try again.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
     }
   }
 
@@ -277,35 +306,34 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
       appBar: AppBar(title: Text('${widget.mode.label} Face')),
       body: LayoutBuilder(
         builder: (context, constraints) {
-          final previewHeight = constraints.maxHeight * 0.65;
+          final previewHeight =
+              constraints.maxHeight * (_isCompleted ? 0.55 : 0.65);
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
-              if (!_isCompleted)
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(32, 16, 32, 16),
-                  child: SizedBox(
-                    height: previewHeight,
-                    child: _isScannerVisible
-                        ? FaceBioView(
-                            key: ValueKey<int>(_scannerSession),
-                            maskColor: Theme.of(
-                              context,
-                            ).scaffoldBackgroundColor,
-                            onResult: (result) => _handleResult(result),
-                            onStateChanged: (_, message) =>
-                                _handleStateChanged(message),
-                            onError: (code, message) {
-                              _handleLibraryFailure(
-                                message?.isNotEmpty == true
-                                    ? message!
-                                    : 'Error [$code] while running face scan',
-                              );
-                            },
-                          )
-                        : const SizedBox.shrink(),
-                  ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(32, 16, 32, 16),
+                child: SizedBox(
+                  height: previewHeight,
+                  child: _isScannerVisible
+                      ? FaceBioView(
+                          key: ValueKey<int>(_scannerSession),
+                          maskColor: Theme.of(context).scaffoldBackgroundColor,
+                          language: widget.language,
+                          onResult: (result) => _handleResult(result),
+                          onStateChanged: (_, message) =>
+                              _handleStateChanged(message),
+                          onError: (code, message) {
+                            _handleLibraryFailure(
+                              message?.isNotEmpty == true
+                                  ? message!
+                                  : 'Error [$code] while running face scan',
+                            );
+                          },
+                        )
+                      : const SizedBox.shrink(),
                 ),
+              ),
               if (!_isCompleted)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -345,8 +373,55 @@ class _FaceScanScreenState extends State<FaceScanScreen> {
                     ),
                   ),
                 ),
+              if (_isCompleted)
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        const Text(
+                          'Face detected',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Retake the scan or continue with this result.',
+                          textAlign: TextAlign.center,
+                        ),
+                        const Spacer(),
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: OutlinedButton(
+                                onPressed: _isSubmitting
+                                    ? null
+                                    : _restartScanner,
+                                child: const Text('Retake'),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: FilledButton(
+                                onPressed: _isSubmitting
+                                    ? null
+                                    : _continueWithCapturedFace,
+                                child: const Text('Continue'),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               if (_isSubmitting)
-                const Expanded(
+                const Padding(
+                  padding: EdgeInsets.all(16),
                   child: Center(child: CircularProgressIndicator()),
                 ),
             ],

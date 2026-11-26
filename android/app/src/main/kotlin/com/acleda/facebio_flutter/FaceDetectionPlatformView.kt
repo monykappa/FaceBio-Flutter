@@ -37,6 +37,9 @@ class FaceDetectionPlatformView(
         (args as? Map<*, *>)?.get("maskColor")?.let { color ->
             cameraView.setMaskColor((color as Number).toInt())
         }
+        (args as? Map<*, *>)?.get("language")?.let { language ->
+            cameraView.setLanguage(language as String)
+        }
         EventChannel(messenger, "face_detection_events_$viewId")
             .setStreamHandler(object : EventChannel.StreamHandler {
                 override fun onListen(args: Any?, sink: EventChannel.EventSink) {
@@ -70,6 +73,9 @@ class FaceDetectionPlatformView(
                 ))
             },
             onImageCaptured = { bitmap ->
+                // Keep the preview on the exact frame that is sent to liveness
+                // detection while Flutter asks the user to retake or continue.
+                cameraView.stopCamera()
                 scope.launch {
                     val imagePath = saveImageToCache(bitmap)
                     if (imagePath == null) {

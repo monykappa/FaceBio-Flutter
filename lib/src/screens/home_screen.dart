@@ -4,8 +4,15 @@ import 'package:facebio_flutter/src/models/scan_mode.dart';
 import 'package:facebio_flutter/src/screens/face_scan_screen.dart';
 import 'package:facebio_flutter/src/widgets/user_id_dialog.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  String _language = 'en'; // 'en' or 'km', sent to the native scanner
 
   Future<void> _startFlow(BuildContext context, ScanMode mode) async {
     final userId = await UserIdDialog.show(context, mode: mode);
@@ -38,7 +45,8 @@ class HomeScreen extends StatelessWidget {
 
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => FaceScanScreen(mode: mode, userId: userId),
+        builder: (_) =>
+            FaceScanScreen(mode: mode, userId: userId, language: _language),
       ),
     );
   }
@@ -46,7 +54,16 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('FaceBio')),
+      appBar: AppBar(
+        title: const Text('FaceBio'),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () =>
+                setState(() => _language = _language == 'km' ? 'en' : 'km'),
+            child: Text(_language == 'km' ? 'ខ្មែរ' : 'English'),
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: Center(

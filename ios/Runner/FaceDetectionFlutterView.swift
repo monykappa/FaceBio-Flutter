@@ -13,6 +13,10 @@ final class FaceDetectionFlutterView: NSObject, FlutterPlatformView, FlutterStre
         self.faceView = FaceDetectionView(frame: frame)
         self.livenessSDK = FaceLivenessSDK.create()
 
+        if let params = args as? [String: Any], let language = params["language"] as? String {
+            FaceBioLocalization.language = language // "en" or "km"
+        }
+
         if let params = args as? [String: Any], let colorInt = params["maskColor"] as? Int {
             let a = CGFloat((colorInt >> 24) & 0xFF) / 255.0
             let r = CGFloat((colorInt >> 16) & 0xFF) / 255.0

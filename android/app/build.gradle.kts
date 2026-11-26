@@ -67,7 +67,7 @@ dependencies {
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     implementation("com.google.android.gms:play-services-mlkit-face-detection:17.1.0")
     implementation("com.google.mlkit:image-labeling:17.0.9")
-    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.23.2")
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.26.0")
 
     val cameraxVersion = "1.4.2"
     implementation("androidx.camera:camera-core:$cameraxVersion")

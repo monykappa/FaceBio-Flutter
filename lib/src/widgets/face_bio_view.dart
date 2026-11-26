@@ -10,12 +10,16 @@ class FaceBioView extends StatefulWidget {
   final void Function(String code, String? message)? onError;
   final Color maskColor;
 
+  /// Language of the native scanner texts: 'en' or 'km'.
+  final String language;
+
   const FaceBioView({
     super.key,
     required this.onResult,
     this.onStateChanged,
     this.onError,
     this.maskColor = Colors.black,
+    this.language = 'en',
   });
 
   @override
@@ -78,6 +82,7 @@ class _FaceBioViewState extends State<FaceBioView> {
           creationParamsCodec: const StandardMessageCodec(),
           creationParams: <String, dynamic>{
             'maskColor': widget.maskColor.toARGB32(),
+            'language': widget.language, // 'km' or 'en' -> native side
           },
         ),
       );
@@ -92,6 +97,7 @@ class _FaceBioViewState extends State<FaceBioView> {
           creationParamsCodec: const StandardMessageCodec(),
           creationParams: <String, dynamic>{
             'maskColor': widget.maskColor.toARGB32(),
+            'language': widget.language, // 'km' or 'en' -> native side
           },
         ),
       );
